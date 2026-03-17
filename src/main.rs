@@ -50,6 +50,11 @@ fn main() -> Result<()> {
     println!("AP Test: {} (probe: {})", args.ap_test, ap_probe);
     println!("STA Test: {} (probe: {})", args.sta_test, sta_probe);
 
+    println!("\n Resetting devices...");
+    reset_probe(ap_probe)?;
+    reset_probe(sta_probe)?;
+    println!("✓ Devices reset\n");
+
     println!("Running tests...");
     let timeout = Duration::from_secs(args.timeout);
     let binary_str = args.binary.to_string_lossy().to_string();
@@ -131,6 +136,7 @@ fn run_test_with_rtt(
 
     let mut child = Command::new("probe-rs")
         .args(&["run", "--probe", probe, binary, test_name])
+        .env("DEFMT_LOG", "info")
         .spawn()
         .map_err(|e| anyhow!("[{}] Failed to spawn: {}", name, e))?;
 
@@ -166,4 +172,16 @@ fn run_test_with_rtt(
             }
         }
     }
+}
+
+fn reset_probe(probe: &str) -> Result<()> {
+    println!("Resetting probe: {}", probe);
+
+    Command::new("probe-rs")
+        .args(&["reset", "--probe", probe])
+        .output()?;
+
+    thread::sleep(Duration::from_millis(500));
+
+    Ok(())
 }
