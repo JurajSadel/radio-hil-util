@@ -2,9 +2,9 @@ use anyhow::{Result, anyhow};
 use clap::Parser;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-
 #[derive(Parser)]
 struct Args {
     #[arg(short = 'b', long)]
@@ -65,6 +65,9 @@ fn main() -> Result<()> {
 
     let binary_str_cloned = binary_str.clone();
 
+    let ap_should_stop = Arc::new(Mutex::new(false));
+    let ap_should_stop_clone = Arc::clone(&ap_should_stop);
+
     let ap_thread = std::thread::spawn(move || {
         run_test_with_rtt(
             "AP",
@@ -72,6 +75,7 @@ fn main() -> Result<()> {
             &ap_test_name,
             &ap_probe_str,
             timeout,
+            Some(ap_should_stop_clone),
         )
     });
 
@@ -80,13 +84,30 @@ fn main() -> Result<()> {
     println!("[STA] Starting now...");
 
     let sta_thread = std::thread::spawn(move || {
-        run_test_with_rtt("STA", &binary_str, &sta_test_name, &sta_probe_str, timeout)
+        run_test_with_rtt(
+            "STA",
+            &binary_str,
+            &sta_test_name,
+            &sta_probe_str,
+            timeout,
+            None,
+        )
     });
 
     std::thread::sleep(Duration::from_secs(3));
 
-    let ap_result = ap_thread.join().unwrap_or(Ok(false)).unwrap_or(false);
     let sta_result = sta_thread.join().unwrap_or(Ok(false)).unwrap_or(false);
+
+    if sta_result {
+        println!("[MAIN] STA passed! Signaling AP to stop...");
+        {
+            let mut should_stop = ap_should_stop.lock().unwrap();
+            *should_stop = true;
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+
+    let ap_result = ap_thread.join().unwrap_or(Ok(false)).unwrap_or(false);
 
     println!("AP Test:  {}", if ap_result { "PASSED" } else { "FAILED" });
     println!("STA Test: {}", if sta_result { "PASSED" } else { "FAILED" });
@@ -135,6 +156,7 @@ fn run_test_with_rtt(
     test_name: &str,
     probe: &str,
     timeout: Duration,
+    should_stop: Option<Arc<Mutex<bool>>>,
 ) -> Result<bool> {
     println!("[{}] Running: {}", name, test_name);
 
@@ -148,6 +170,17 @@ fn run_test_with_rtt(
 
     let start = Instant::now();
     loop {
+        // Check if we should stop (for AP when STA passes)
+        if let Some(ref stop_flag) = should_stop {
+            if let Ok(should_stop_val) = stop_flag.lock() {
+                if *should_stop_val {
+                    println!("[{}] Stopping due to STA completion", name);
+                    let _ = child.kill();
+                    return Ok(true);
+                }
+            }
+        }
+
         if start.elapsed() > timeout {
             println!("[{}] TIMEOUT", name);
             let _ = child.kill();
