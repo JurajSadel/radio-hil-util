@@ -75,6 +75,10 @@ fn main() -> Result<()> {
         )
     });
 
+    println!("[STA] Waiting 2000 ms for AP to start...");
+    thread::sleep(Duration::from_millis(2000));
+    println!("[STA] Starting now...");
+
     let sta_thread = std::thread::spawn(move || {
         run_test_with_rtt("STA", &binary_str, &sta_test_name, &sta_probe_str, timeout)
     });
