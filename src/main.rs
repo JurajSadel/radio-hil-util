@@ -76,7 +76,7 @@ fn main() -> Result<()> {
     });
 
     println!("[STA] Waiting 2000 ms for AP to start...");
-    thread::sleep(Duration::from_millis(2000));
+    thread::sleep(Duration::from_millis(1000));
     println!("[STA] Starting now...");
 
     let sta_thread = std::thread::spawn(move || {
