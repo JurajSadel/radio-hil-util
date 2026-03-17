@@ -94,7 +94,7 @@ fn main() -> Result<()> {
         )
     });
 
-    std::thread::sleep(Duration::from_secs(3));
+    // std::thread::sleep(Duration::from_secs(3));
 
     let sta_result = sta_thread.join().unwrap_or(Ok(false)).unwrap_or(false);
 
