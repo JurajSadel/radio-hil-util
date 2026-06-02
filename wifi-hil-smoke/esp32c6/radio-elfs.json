@@ -1,0 +1,12 @@
+[
+  {
+    "artifact": "wifi_has_wifi_ble",
+    "harness": "wifi_ap_support_has_wifi_ble",
+    "support_firmware": false
+  },
+  {
+    "artifact": "wifi_ap_support_has_wifi_ble",
+    "harness": null,
+    "support_firmware": true
+  }
+]
